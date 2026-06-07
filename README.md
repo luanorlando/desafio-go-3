@@ -1,3 +1,37 @@
+# Comandos para utilizar o projeto
+– De permisão para executar o script
+> chmod +x setup.sh
+– A primeira vez execute o script somente a primeira vez
+> ./setup.sh 
+– Depois rode o programa normalmente, na pasta raiz use o comando
+> go run cmd/main.go cmd/wire_gen.go
+
+– Dica: Apague os containers com o comando
+docker rm -f $(docker ps -a -p)
+– Deletar a pasta .docker para o mysql subir zeradinho
+– rode o comando abaixo para subir o mysql e o rabitMQ
+docker-compose up -d
+– execute o mysql com o docker
+docker-compose exec mysql bash
+– agora que está dentro do banco de dados, crie a tabela orders com 
+mysql -uroot -p orders
+– insira a senha que é "root"
+– rode o comando para rodar o projeto
+go run main.go wire_gen.go
+
+
+– checar container
+rode docker ps
+– pegue o nome do container da imagem mysql e rode o comando
+docker exec -it <TODO: pegar nome do container> bash
+– após entrar no bash use comando abaixo para acessar o banco de dados chamado orders
+mysql -uroot -p
+– insira a senha que é "root" informada em algum canto que não me lembro
+– use o comando 
+show database
+– caso não tenha nenhum database criado então, crie o database
+create database orders;
+
 # Desenvolvimento do desafio
 Desafio usará como base [código fonte](https://github.com/devfullcycle/goexpert/tree/main/20-CleanArch) onde já tem o projeto bem encaminhado conforme exibido em aulas.
 
