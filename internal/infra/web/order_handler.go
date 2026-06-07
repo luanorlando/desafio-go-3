@@ -47,3 +47,8 @@ func (h *WebOrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func (h *WebOrderHandler) getAllOrders(w http.ResponseWriter, r *http.Request) {
+	var dto usecase.OrderOutputDTO
+	err := json
+}
