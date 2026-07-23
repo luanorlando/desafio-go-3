@@ -7,3 +7,8 @@ Content-Type: application/json
     "price": 100.5,
     "tax": 0.5
 }
+
+### Obtendo lista de orders
+GET http://localhost:8000/orders
+Host: localhost:8000
+Content-Type: application/json
