@@ -1,4 +1,23 @@
 services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app
+    depends_on:
+      - mysql
+      - rabbitmq
+    environment:
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: orders
+      # Adicione outras variáveis de ambiente necessárias para sua aplicação
+    ports:
+      - "8000:8000"
+      - "8080:8080"
+      - "50051:50051"
+    restart: always
   mysql:
     platform: linux/amd64
     image: mysql:5.7

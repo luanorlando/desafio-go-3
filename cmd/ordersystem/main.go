@@ -35,6 +35,10 @@ func main() {
 	}
 	defer db.Close()
 
+	if err := migrate(db); err != nil {
+		panic(fmt.Errorf("erro ao migrar tabela orders: %w", err))
+	}
+
 	rabbitMQChannel := getRabbitMQChannel()
 
 	eventDispatcher := events.NewEventDispatcher()
@@ -73,6 +77,18 @@ func main() {
 
 	fmt.Println("Starting GraphQL server on port", configs.GraphQLServerPort)
 	http.ListenAndServe(":"+configs.GraphQLServerPort, nil)
+}
+
+func migrate(db *sql.DB) error {
+	query := `
+	CREATE TABLE IF NOT EXISTS orders (
+		id VARCHAR(255) PRIMARY KEY,
+		price FLOAT NOT NULL,
+		tax FLOAT NOT NULL,
+		final_price FLOAT NOT NULL
+	);`
+	_, err := db.Exec(query)
+	return err
 }
 
 func getRabbitMQChannel() *amqp.Channel {
