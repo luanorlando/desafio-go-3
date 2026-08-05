@@ -1,20 +1,20 @@
 # SETUP INICIAL
 
-A pasta .docker não foi commitada, então será necessário subir o mysql e rabitMQ.
-
-## Execução automática
-
-**
-Agora, basta rodar um único comando para subir toda a stack (aplicação, banco e fila), criar o banco e a tabela orders automaticamente:
-**
+1. Rode o script de setup para limpar containers antigos, subir MySQL e RabbitMQ, e garantir que o banco está pronto:
 
 ```sh
-docker compose up
+./setup.sh
+```
+
+2. Em seguida, rode a aplicação Go:
+
+```sh
+go run main.go wire_gen.go
 ```
 
 - O banco de dados MySQL e o RabbitMQ serão criados automaticamente.
-- A aplicação irá aguardar o banco estar pronto, aplicar as migrações (criando a tabela `orders`) e iniciar os servidores REST, gRPC e GraphQL.
-- Não é necessário executar comandos manuais para criar banco ou tabela.
+- O script aguarda o banco estar pronto antes de liberar a execução da aplicação.
+- Não é necessário executar comandos manuais para criar banco ou tabela, pois a aplicação faz a migração automaticamente no startup.
 
 ## Checagem dos containers
 
@@ -23,6 +23,8 @@ Para verificar se os containers estão rodando:
 ```sh
 docker ps
 ```
+
+---
 
 ---
 
