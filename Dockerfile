@@ -1,5 +1,5 @@
 # Etapa de build
-FROM golang:1.21-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o app .
+RUN go build -o app ./cmd/ordersystem
 
 # Etapa de execução
 FROM alpine:latest
