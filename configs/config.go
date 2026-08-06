@@ -1,8 +1,12 @@
 package configs
 
-import "github.com/spf13/viper"
+import (
+	"strings"
 
-type conf struct {
+	"github.com/spf13/viper"
+)
+
+type Conf struct {
 	DBDriver          string `mapstructure:"DB_DRIVER"`
 	DBHost            string `mapstructure:"DB_HOST"`
 	DBPort            string `mapstructure:"DB_PORT"`
@@ -12,22 +16,52 @@ type conf struct {
 	WebServerPort     string `mapstructure:"WEB_SERVER_PORT"`
 	GRPCServerPort    string `mapstructure:"GRPC_SERVER_PORT"`
 	GraphQLServerPort string `mapstructure:"GRAPHQL_SERVER_PORT"`
+	RabbitMQURL       string `mapstructure:"RABBITMQ_URL"`
 }
 
-func LoadConfig(path string) (*conf, error) {
-	var cfg *conf
-	viper.SetConfigName("app_config")
-	viper.SetConfigType("env")
-	viper.AddConfigPath(path)
-	viper.SetConfigFile(".env")
+func LoadConfig(path string) (*Conf, error) {
+	var cfg Conf
+
+	viper.SetConfigFile(path + "/.env")
 	viper.AutomaticEnv()
-	err := viper.ReadInConfig()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	// Lê o arquivo .env se existir
+	_ = viper.ReadInConfig()
+
+	// Bind cada variável de ambiente explicitamente
+	viper.BindEnv("DB_DRIVER")
+	viper.BindEnv("DB_HOST")
+	viper.BindEnv("DB_PORT")
+	viper.BindEnv("DB_USER")
+	viper.BindEnv("DB_PASSWORD")
+	viper.BindEnv("DB_NAME")
+	viper.BindEnv("WEB_SERVER_PORT")
+	viper.BindEnv("GRPC_SERVER_PORT")
+	viper.BindEnv("GRAPHQL_SERVER_PORT")
+	viper.BindEnv("RABBITMQ_URL")
+
+	err := viper.Unmarshal(&cfg)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	err = viper.Unmarshal(&cfg)
-	if err != nil {
-		panic(err)
-	}
-	return cfg, err
+	return &cfg, nil
 }
+
+// func LoadConfig(path string) (*Conf, error) {
+// 	var cfg *Conf
+// 	viper.SetConfigName("app_config")
+// 	viper.SetConfigType("env")
+// 	viper.AddConfigPath(path)
+// 	viper.SetConfigFile(".env")
+// 	viper.AutomaticEnv()
+// 	err := viper.ReadInConfig()
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	err = viper.Unmarshal(&cfg)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	return cfg, err
+// }

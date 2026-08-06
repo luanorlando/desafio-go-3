@@ -3,12 +3,12 @@ Host: localhost:8000
 Content-Type: application/json
 
 {
-    "id":"a",
+    "id":"zzz",
     "price": 100.5,
     "tax": 0.5
 }
 
 ### Obtendo lista de orders
-GET http://localhost:8000/orders
+GET http://localhost:8000/orders HTTP/1.1
 Host: localhost:8000
 Content-Type: application/json
