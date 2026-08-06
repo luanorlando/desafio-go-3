@@ -1,31 +1,20 @@
 # SETUP INICIAL
 
-1. Rode o script de setup para limpar containers antigos, subir MySQL e RabbitMQ, e garantir que o banco está pronto:
+1. Para Remover containers
 
 ```sh
-./setup.sh
+docker-compose down
 ```
 
-2. Em seguida, rode a aplicação Go:
+2. Build das imagens e inicialização dos containers
 
 ```sh
-go run main.go wire_gen.go
+docker-compose up --build
 ```
 
-- O banco de dados MySQL e o RabbitMQ serão criados automaticamente.
-- O script aguarda o banco estar pronto antes de liberar a execução da aplicação.
-- Não é necessário executar comandos manuais para criar banco ou tabela, pois a aplicação faz a migração automaticamente no startup.
-
-## Checagem dos containers
-
-Para verificar se os containers estão rodando:
-
-```sh
-docker ps
-```
+O Docker irá entregar banco, tabela e os três servidores sozinho.
 
 ---
-
 ---
 
 # Desenvolvimento do desafio
