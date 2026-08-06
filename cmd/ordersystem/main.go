@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
+	"time"
 
 	graphql_handler "github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
@@ -19,7 +21,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
-	// mysql
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -29,17 +30,30 @@ func main() {
 		panic(err)
 	}
 
-	db, err := sql.Open(configs.DBDriver, fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", configs.DBUser, configs.DBPassword, configs.DBHost, configs.DBPort, configs.DBName))
-	if err != nil {
-		panic(err)
-	}
+	// ✅ DEBUG: Imprimir todas as configs
+	fmt.Println("=== CONFIGS ===")
+	fmt.Println("DB_DRIVER:", configs.DBDriver)
+	fmt.Println("DB_HOST:", configs.DBHost)
+	fmt.Println("DB_PORT:", configs.DBPort)
+	fmt.Println("DB_USER:", configs.DBUser)
+	fmt.Println("DB_NAME:", configs.DBName)
+	fmt.Println("WEB_SERVER_PORT:", configs.WebServerPort)
+	fmt.Println("GRPC_SERVER_PORT:", configs.GRPCServerPort)
+	fmt.Println("GRAPHQL_SERVER_PORT:", configs.GraphQLServerPort)
+	fmt.Println("RABBITMQ_URL:", configs.RabbitMQURL) // ✅ AQUI!
+	fmt.Println("================")
+
+	// ✅ Conectar ao banco com retry
+	db := connectDB(configs)
 	defer db.Close()
 
 	if err := migrate(db); err != nil {
 		panic(fmt.Errorf("erro ao migrar tabela orders: %w", err))
 	}
 
-	rabbitMQChannel := getRabbitMQChannel()
+	// ✅ Conectar ao RabbitMQ com retry (usando variável de ambiente)
+	rabbitMQChannel := connectRabbitMQ(configs)
+	defer rabbitMQChannel.Close()
 
 	eventDispatcher := events.NewEventDispatcher()
 	eventDispatcher.Register("OrderCreated", &handler.OrderCreatedHandler{
@@ -53,30 +67,109 @@ func main() {
 
 	webserver.AddHandler("/order", webOrderHandler.Create)
 	webserver.AddHandler("/orders", webOrderHandler.List)
-	fmt.Println("Starting web server on port", configs.WebServerPort)
-	go webserver.Start()
 
-	grpcServer := grpc.NewServer()
-	createOrderService := service.NewOrderService(*createOrderUseCase, *listOrderUseCase)
-	pb.RegisterOrderServiceServer(grpcServer, createOrderService)
-	reflection.Register(grpcServer)
+	// ✅ Usar WaitGroup para sincronizar os 3 servidores
+	var wg sync.WaitGroup
 
-	fmt.Println("Starting gRPC server on port", configs.GRPCServerPort)
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", configs.GRPCServerPort))
-	if err != nil {
-		panic(err)
+	// REST Server
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		fmt.Println("Starting web server on port", configs.WebServerPort)
+		if err := webserver.Start(); err != nil {
+			fmt.Printf("Web server error: %v\n", err)
+		}
+	}()
+
+	// gRPC Server
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		grpcServer := grpc.NewServer()
+		createOrderService := service.NewOrderService(*createOrderUseCase, *listOrderUseCase)
+		pb.RegisterOrderServiceServer(grpcServer, createOrderService)
+		reflection.Register(grpcServer)
+
+		fmt.Println("Starting gRPC server on port", configs.GRPCServerPort)
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%s", configs.GRPCServerPort))
+		if err != nil {
+			fmt.Printf("gRPC listen error: %v\n", err)
+			return
+		}
+		// ✅ CORRIGIDO: Serve() é bloqueante, não precisa de 'go'
+		if err := grpcServer.Serve(lis); err != nil {
+			fmt.Printf("gRPC server error: %v\n", err)
+		}
+	}()
+
+	// GraphQL Server
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		srv := graphql_handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{
+			Resolvers: &graph.Resolver{
+				CreateOrderUseCase: *createOrderUseCase,
+				ListOrderUseCase:   *listOrderUseCase,
+			},
+		}))
+
+		// ✅ CORRIGIDO: Usar mux separado, não http.Handle global
+		mux := http.NewServeMux()
+		mux.Handle("/", playground.Handler("GraphQL playground", "/query"))
+		mux.Handle("/query", srv)
+
+		fmt.Println("Starting GraphQL server on port", configs.GraphQLServerPort)
+		if err := http.ListenAndServe(":"+configs.GraphQLServerPort, mux); err != nil {
+			fmt.Printf("GraphQL server error: %v\n", err)
+		}
+	}()
+
+	// ✅ Aguardar todos os servidores
+	wg.Wait()
+}
+
+// ✅ NOVO: Conectar ao banco com retry
+func connectDB(cfg *configs.Conf) *sql.DB {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
+		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName)
+
+	var db *sql.DB
+	var err error
+
+	for i := 0; i < 10; i++ {
+		db, err = sql.Open(cfg.DBDriver, dsn)
+		if err == nil {
+			if err := db.Ping(); err == nil {
+				fmt.Println("✅ Connected to MySQL")
+				return db
+			}
+		}
+		fmt.Printf("⏳ Tentando conectar ao MySQL... (tentativa %d/10)\n", i+1)
+		time.Sleep(2 * time.Second)
 	}
-	go grpcServer.Serve(lis)
 
-	srv := graphql_handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{
-		CreateOrderUseCase: *createOrderUseCase,
-		ListOrderUseCase:   *listOrderUseCase,
-	}}))
-	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	http.Handle("/query", srv)
+	panic(fmt.Errorf("erro ao conectar ao banco após 10 tentativas: %w", err))
+}
 
-	fmt.Println("Starting GraphQL server on port", configs.GraphQLServerPort)
-	http.ListenAndServe(":"+configs.GraphQLServerPort, nil)
+// ✅ NOVO: Conectar ao RabbitMQ com retry (usando variável de ambiente)
+func connectRabbitMQ(cfg *configs.Conf) *amqp.Channel {
+	var conn *amqp.Connection
+	var err error
+
+	for i := 0; i < 10; i++ {
+		conn, err = amqp.Dial(cfg.RabbitMQURL) // ✅ Usar variável de ambiente
+		if err == nil {
+			ch, err := conn.Channel()
+			if err == nil {
+				fmt.Println("✅ Connected to RabbitMQ")
+				return ch
+			}
+		}
+		fmt.Printf("⏳ Tentando conectar ao RabbitMQ... (tentativa %d/10)\n", i+1)
+		time.Sleep(2 * time.Second)
+	}
+
+	panic(fmt.Errorf("erro ao conectar ao RabbitMQ após 10 tentativas: %w", err))
 }
 
 func migrate(db *sql.DB) error {
@@ -89,16 +182,4 @@ func migrate(db *sql.DB) error {
 	);`
 	_, err := db.Exec(query)
 	return err
-}
-
-func getRabbitMQChannel() *amqp.Channel {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	if err != nil {
-		panic(err)
-	}
-	ch, err := conn.Channel()
-	if err != nil {
-		panic(err)
-	}
-	return ch
 }
