@@ -25,11 +25,8 @@ func LoadConfig(path string) (*Conf, error) {
 	viper.SetConfigFile(path + "/.env")
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	// Lê o arquivo .env se existir
 	_ = viper.ReadInConfig()
 
-	// Bind cada variável de ambiente explicitamente
 	viper.BindEnv("DB_DRIVER")
 	viper.BindEnv("DB_HOST")
 	viper.BindEnv("DB_PORT")
@@ -47,21 +44,3 @@ func LoadConfig(path string) (*Conf, error) {
 	}
 	return &cfg, nil
 }
-
-// func LoadConfig(path string) (*Conf, error) {
-// 	var cfg *Conf
-// 	viper.SetConfigName("app_config")
-// 	viper.SetConfigType("env")
-// 	viper.AddConfigPath(path)
-// 	viper.SetConfigFile(".env")
-// 	viper.AutomaticEnv()
-// 	err := viper.ReadInConfig()
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	err = viper.Unmarshal(&cfg)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	return cfg, err
-// }
