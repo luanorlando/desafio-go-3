@@ -1,22 +1,3 @@
-# SETUP INICIAL
-
-1. Para Remover containers
-
-```sh
-docker-compose down
-```
-
-2. Build das imagens e inicialização dos containers
-
-```sh
-docker-compose up --build
-```
-
-O Docker irá entregar banco, tabela e os três servidores sozinho.
-
----
----
-
 # Desenvolvimento do desafio
 Desafio usará como base [
 código fonte
