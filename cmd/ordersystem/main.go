@@ -30,7 +30,6 @@ func main() {
 		panic(err)
 	}
 
-	// ✅ DEBUG: Imprimir todas as configs
 	fmt.Println("=== CONFIGS ===")
 	fmt.Println("DB_DRIVER:", configs.DBDriver)
 	fmt.Println("DB_HOST:", configs.DBHost)
@@ -43,7 +42,6 @@ func main() {
 	fmt.Println("RABBITMQ_URL:", configs.RabbitMQURL) // ✅ AQUI!
 	fmt.Println("================")
 
-	// ✅ Conectar ao banco com retry
 	db := connectDB(configs)
 	defer db.Close()
 
@@ -51,7 +49,6 @@ func main() {
 		panic(fmt.Errorf("erro ao migrar tabela orders: %w", err))
 	}
 
-	// ✅ Conectar ao RabbitMQ com retry (usando variável de ambiente)
 	rabbitMQChannel := connectRabbitMQ(configs)
 	defer rabbitMQChannel.Close()
 
@@ -68,7 +65,6 @@ func main() {
 	webserver.AddHandler("/order", webOrderHandler.Create)
 	webserver.AddHandler("/orders", webOrderHandler.List)
 
-	// ✅ Usar WaitGroup para sincronizar os 3 servidores
 	var wg sync.WaitGroup
 
 	// REST Server
@@ -96,7 +92,6 @@ func main() {
 			fmt.Printf("gRPC listen error: %v\n", err)
 			return
 		}
-		// ✅ CORRIGIDO: Serve() é bloqueante, não precisa de 'go'
 		if err := grpcServer.Serve(lis); err != nil {
 			fmt.Printf("gRPC server error: %v\n", err)
 		}
@@ -113,7 +108,6 @@ func main() {
 			},
 		}))
 
-		// ✅ CORRIGIDO: Usar mux separado, não http.Handle global
 		mux := http.NewServeMux()
 		mux.Handle("/", playground.Handler("GraphQL playground", "/query"))
 		mux.Handle("/query", srv)
@@ -123,12 +117,9 @@ func main() {
 			fmt.Printf("GraphQL server error: %v\n", err)
 		}
 	}()
-
-	// ✅ Aguardar todos os servidores
 	wg.Wait()
 }
 
-// ✅ NOVO: Conectar ao banco com retry
 func connectDB(cfg *configs.Conf) *sql.DB {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
 		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName)
@@ -151,13 +142,12 @@ func connectDB(cfg *configs.Conf) *sql.DB {
 	panic(fmt.Errorf("erro ao conectar ao banco após 10 tentativas: %w", err))
 }
 
-// ✅ NOVO: Conectar ao RabbitMQ com retry (usando variável de ambiente)
 func connectRabbitMQ(cfg *configs.Conf) *amqp.Channel {
 	var conn *amqp.Connection
 	var err error
 
 	for i := 0; i < 10; i++ {
-		conn, err = amqp.Dial(cfg.RabbitMQURL) // ✅ Usar variável de ambiente
+		conn, err = amqp.Dial(cfg.RabbitMQURL)
 		if err == nil {
 			ch, err := conn.Channel()
 			if err == nil {
