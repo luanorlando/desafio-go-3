@@ -15,6 +15,19 @@ Endpoint gRPC
 Query GraphQL
 **
 
+# Setup
+O projeto tem 3 tipos de servidores sendo eles:
+|Servidor|Porta|
+|--------|-----|
+|web(REST)|8000|
+|GraphQL | 8080|
+|gRPC |50051|
+
+Para rodar o projeto será necessário subir esses servidores em suas respectivas portas em containers, 
+para isso será necessário apenas executar o comando:
+
+`docker-compose up --build`
+
 
 # Clean Architecture: Listagem de Orders (REST, gRPC e GraphQL)
 
